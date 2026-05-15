@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "nameSuffix": {
+      "value": "ech01"
+    },
+    "location": {
+      "value": "swedencentral"
+    },
+    "speechLocation": {
+      "value": "westeurope"
+    },
+    "sharedLawResourceGroup": {
+      "value": "sentinel-goodies"
+    },
+    "sharedLawName": {
+      "value": "law-uksouth"
+    },
+    "ownerObjectId": {
+      "value": "00a76b38-960f-46d5-a85c-583b6352ea34"
+    }
+  }
+}
