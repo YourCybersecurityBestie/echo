@@ -5,6 +5,13 @@ param nameSuffix string
 param location string
 param tags object
 
+@description('Public network access for the storage account. Keep Enabled until the Listener no longer reads blobs directly; the VNet-integrated Function App can use private endpoints either way.')
+@allowed([
+  'Enabled'
+  'Disabled'
+])
+param publicNetworkAccess string = 'Enabled'
+
 var storageAccountName = toLower('stechoprod${nameSuffix}')
 
 resource sa 'Microsoft.Storage/storageAccounts@2024-01-01' = {
@@ -19,8 +26,10 @@ resource sa 'Microsoft.Storage/storageAccounts@2024-01-01' = {
     allowBlobPublicAccess: false
     allowSharedKeyAccess: false // managed-identity only
     defaultToOAuthAuthentication: true
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: publicNetworkAccess
     networkAcls: {
+      // Allow by default so the Listener PWA can read feed.xml/audio blobs directly.
+      // Lock this down only once blob access is proxied through the Function App.
       defaultAction: 'Allow'
       bypass: 'AzureServices'
     }
@@ -42,6 +51,16 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2024-01-01'
 resource defaultContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2024-01-01' = {
   parent: blobService
   name: 'echo-audio'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Flex Consumption deployment package container (referenced by function-app.bicep
+// functionAppConfig.deployment). Declared here so fresh deploys are reproducible.
+resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2024-01-01' = {
+  parent: blobService
+  name: 'deployment'
   properties: {
     publicAccess: 'None'
   }
