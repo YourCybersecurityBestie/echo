@@ -137,6 +137,7 @@ module functionApp 'modules/function-app.bicep' = {
     speechAccountName: speech.outputs.speechAccountName
     speechRegion: speechLocation
     functionsSubnetId: network.outputs.functionsSubnetId
+    staticWebAppUrl: 'https://${staticWebApp.outputs.defaultHostName}'
   }
 }
 
