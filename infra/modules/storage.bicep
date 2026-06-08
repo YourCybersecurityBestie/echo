@@ -5,12 +5,12 @@ param nameSuffix string
 param location string
 param tags object
 
-@description('Public network access for the storage account. Keep Enabled until the Listener no longer reads blobs directly; the VNet-integrated Function App can use private endpoints either way.')
+@description('Public network access for the storage account. Default Disabled: the Function App reaches storage over private endpoints and the Listener goes through the Publisher proxy. Set Enabled only to temporarily roll back.')
 @allowed([
   'Enabled'
   'Disabled'
 ])
-param publicNetworkAccess string = 'Enabled'
+param publicNetworkAccess string = 'Disabled'
 
 var storageAccountName = toLower('stechoprod${nameSuffix}')
 
