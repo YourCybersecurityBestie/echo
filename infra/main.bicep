@@ -28,6 +28,13 @@ param sharedLawName string = 'law-uksouth'
 @description('Object ID of the human/service principal that owns this deployment (gets Key Vault Administrator).')
 param ownerObjectId string
 
+@description('Public network access for the storage account. Keep Enabled while the Listener reads blobs directly from the browser; set Disabled only after blob access is proxied through the Function App. The Function App itself uses private endpoints regardless.')
+@allowed([
+  'Enabled'
+  'Disabled'
+])
+param storagePublicNetworkAccess string = 'Enabled'
+
 @description('Tags applied to every resource.')
 param tags object = {
   project: 'echo'
@@ -57,6 +64,30 @@ module storage 'modules/storage.bicep' = {
     nameSuffix: nameSuffix
     location: location
     tags: tags
+    publicNetworkAccess: storagePublicNetworkAccess
+  }
+}
+
+module network 'modules/network.bicep' = {
+  scope: rg
+  name: 'network'
+  params: {
+    location: location
+    tags: tags
+  }
+}
+
+// Private endpoints + private DNS for blob/queue/table so the VNet-integrated
+// Function App reaches storage while publicNetworkAccess stays Disabled.
+module privateEndpoints 'modules/private-endpoints.bicep' = {
+  scope: rg
+  name: 'privateEndpoints'
+  params: {
+    location: location
+    tags: tags
+    storageAccountName: storage.outputs.storageAccountName
+    privateEndpointSubnetId: network.outputs.privateEndpointSubnetId
+    vnetId: network.outputs.vnetId
   }
 }
 
@@ -93,6 +124,10 @@ module appInsights 'modules/appinsights.bicep' = {
 module functionApp 'modules/function-app.bicep' = {
   scope: rg
   name: 'functionApp'
+  // Ensure private endpoints + DNS exist before the host starts pulling its package.
+  dependsOn: [
+    privateEndpoints
+  ]
   params: {
     location: location
     tags: tags
@@ -101,6 +136,7 @@ module functionApp 'modules/function-app.bicep' = {
     keyVaultName: keyvault.outputs.keyVaultName
     speechAccountName: speech.outputs.speechAccountName
     speechRegion: speechLocation
+    functionsSubnetId: network.outputs.functionsSubnetId
   }
 }
 
@@ -142,3 +178,5 @@ output foundryProjectEndpoint string = foundry.outputs.projectEndpoint
 output speechRegion string = speechLocation
 output keyVaultName string = keyvault.outputs.keyVaultName
 output appInsightsConnectionString string = appInsights.outputs.connectionString
+output vnetId string = network.outputs.vnetId
+output storagePublicNetworkAccess string = storagePublicNetworkAccess

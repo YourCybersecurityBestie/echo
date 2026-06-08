@@ -8,6 +8,12 @@ param keyVaultName string
 param speechAccountName string
 param speechRegion string
 
+@description('Resource ID of the delegated subnet for Flex Consumption outbound VNet integration.')
+param functionsSubnetId string
+
+@description('Allowed CORS origins for the proxy endpoints (Listener PWA + podcast clients).')
+param corsAllowedOrigins array = ['*']
+
 var functionAppName = 'func-echo-publisher'
 var planName = 'plan-echo-flex'
 
@@ -39,6 +45,8 @@ resource func 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: plan.id
     httpsOnly: true
     publicNetworkAccess: 'Enabled'
+    // Outbound VNet integration so the host reaches storage over private endpoints.
+    virtualNetworkSubnetId: functionsSubnetId
     functionAppConfig: {
       deployment: {
         storage: {
@@ -57,6 +65,9 @@ resource func 'Microsoft.Web/sites@2024-04-01' = {
       }
     }
     siteConfig: {
+      cors: {
+        allowedOrigins: corsAllowedOrigins
+      }
       appSettings: [
         { name: 'AzureWebJobsStorage__accountName', value: storageAccount.name }
         { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
@@ -66,7 +77,7 @@ resource func 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'SPEECH_REGION', value: speechRegion }
         { name: 'SPEECH_ACCOUNT_NAME', value: speechAccountName }
         { name: 'KEY_VAULT_NAME', value: keyVaultName }
-        { name: 'DEFAULT_COVER_URL', value: '${storageAccount.properties.primaryEndpoints.blob}echo-audio/cover-default.jpg' }
+        { name: 'DEFAULT_COVER_URL', value: 'https://${functionAppName}.azurewebsites.net/api/cover/cover-default.jpg' }
       ]
     }
   }
