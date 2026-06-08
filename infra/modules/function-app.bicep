@@ -77,7 +77,7 @@ resource func 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'SPEECH_REGION', value: speechRegion }
         { name: 'SPEECH_ACCOUNT_NAME', value: speechAccountName }
         { name: 'KEY_VAULT_NAME', value: keyVaultName }
-        { name: 'DEFAULT_COVER_URL', value: '${storageAccount.properties.primaryEndpoints.blob}echo-audio/cover-default.jpg' }
+        { name: 'DEFAULT_COVER_URL', value: 'https://${functionAppName}.azurewebsites.net/api/cover/cover-default.jpg' }
       ]
     }
   }
