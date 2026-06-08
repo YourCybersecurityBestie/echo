@@ -14,6 +14,9 @@ param functionsSubnetId string
 @description('Allowed CORS origins for the proxy endpoints (Listener PWA + podcast clients).')
 param corsAllowedOrigins array = ['*']
 
+@description('Base URL of the Static Web App listener, used to build listen/feed URLs.')
+param staticWebAppUrl string
+
 var functionAppName = 'func-echo-publisher'
 var planName = 'plan-echo-flex'
 
@@ -77,6 +80,8 @@ resource func 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'SPEECH_REGION', value: speechRegion }
         { name: 'SPEECH_ACCOUNT_NAME', value: speechAccountName }
         { name: 'KEY_VAULT_NAME', value: keyVaultName }
+        { name: 'SPEECH_CUSTOM_DOMAIN', value: speechAccountName }
+        { name: 'STATIC_WEB_APP_URL', value: staticWebAppUrl }
         { name: 'DEFAULT_COVER_URL', value: 'https://${functionAppName}.azurewebsites.net/api/cover/cover-default.jpg' }
       ]
     }

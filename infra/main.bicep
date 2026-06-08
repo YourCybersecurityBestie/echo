@@ -28,12 +28,12 @@ param sharedLawName string = 'law-uksouth'
 @description('Object ID of the human/service principal that owns this deployment (gets Key Vault Administrator).')
 param ownerObjectId string
 
-@description('Public network access for the storage account. Keep Enabled while the Listener reads blobs directly from the browser; set Disabled only after blob access is proxied through the Function App. The Function App itself uses private endpoints regardless.')
+@description('Public network access for the storage account. The Function App reaches storage over private endpoints; the Listener reads blobs through the Publisher proxy (/api/feed, /api/audio, /api/cover). Kept Disabled as the durable state. Only set Enabled temporarily if you need to roll back the proxy.')
 @allowed([
   'Enabled'
   'Disabled'
 ])
-param storagePublicNetworkAccess string = 'Enabled'
+param storagePublicNetworkAccess string = 'Disabled'
 
 @description('Tags applied to every resource.')
 param tags object = {
@@ -137,6 +137,7 @@ module functionApp 'modules/function-app.bicep' = {
     speechAccountName: speech.outputs.speechAccountName
     speechRegion: speechLocation
     functionsSubnetId: network.outputs.functionsSubnetId
+    staticWebAppUrl: 'https://${staticWebApp.outputs.defaultHostName}'
   }
 }
 
