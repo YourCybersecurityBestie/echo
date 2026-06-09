@@ -123,6 +123,8 @@ Single endpoint that handles speech synthesis + storage + RSS feed update. Your 
       "post": {
         "summary": "Synthesize SSML to MP3 and store it",
         "operationId": "SynthesizeSpeech",
+        "description": "Long-running operation. Returns 202 + a Location header; Power Platform auto-polls that URL until it returns a non-202 response, then surfaces the final 200 body (with mp3Url). This bypasses the connector's ~30s synchronous timeout, which full-episode HD synthesis can exceed.",
+        "x-ms-long-running-operation": true,
         "parameters": [
           {
             "name": "body",
@@ -139,16 +141,61 @@ Single endpoint that handles speech synthesis + storage + RSS feed update. Your 
           }
         ],
         "responses": {
-          "200": {
-            "description": "Success",
+          "202": {
+            "description": "Accepted — job queued. The connector polls the Location header until it returns 200.",
+            "headers": {
+              "Location": {
+                "type": "string",
+                "description": "Status URL to poll. Anonymous, guarded by the unguessable jobId."
+              }
+            },
             "schema": {
               "type": "object",
               "properties": {
+                "jobId": { "type": "string" },
+                "status": { "type": "string" },
+                "statusUrl": { "type": "string" }
+              }
+            }
+          },
+          "200": {
+            "description": "Synthesis complete (final polled result).",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "jobId": { "type": "string" },
+                "status": { "type": "string" },
                 "mp3Url": { "type": "string" },
                 "durationSeconds": { "type": "integer" }
               }
             }
           }
+        }
+      }
+    },
+    "/synthesize/status/{jobId}": {
+      "get": {
+        "summary": "Poll synthesis job status",
+        "description": "Called automatically by the long-running-operation poller. Anonymous: the function key is NOT required (and is not reattached to the polled Location URL), so this endpoint is guarded by the unguessable jobId instead.",
+        "operationId": "SynthesizeStatus",
+        "parameters": [
+          { "name": "jobId", "in": "path", "type": "string", "required": true }
+        ],
+        "responses": {
+          "202": { "description": "Still queued or running — keep polling." },
+          "200": {
+            "description": "Done.",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "jobId": { "type": "string" },
+                "status": { "type": "string" },
+                "mp3Url": { "type": "string" },
+                "durationSeconds": { "type": "integer" }
+              }
+            }
+          },
+          "500": { "description": "Synthesis failed." }
         }
       }
     },
@@ -236,15 +283,22 @@ Single endpoint that handles speech synthesis + storage + RSS feed update. Your 
 
 Use Function-level keys for the demo. For production, swap to Entra ID auth (Function App → Authentication → Add Microsoft identity provider) and remove the function key.
 
+> **Note:** `SynthesizeSpeech` is a **long-running operation**. The `POST /synthesize` carries the function key, but the `202` `Location` URL it returns does **not**, and Power Platform does not reattach the key when auto-polling. The `/synthesize/status/{jobId}` endpoint is therefore **anonymous** (guarded by the unguessable jobId). If you ever switch the status endpoint back to `authLevel: 'function'`, the connector poll will get **401** and the orchestrator will fail with a generic "something went wrong" because it never receives `mp3Url`.
+
+### Long-running operation (why synthesize is async)
+
+Full-episode HD synthesis can take longer than the connector's ~30s synchronous limit. So `POST /synthesize` returns immediately with `202` + a `Location` header, and `x-ms-long-running-operation: true` tells Power Platform to poll that URL until it returns `200` with the final `mp3Url`. **If you import an older spec without the `202`/`x-ms-long-running-operation` declaration, the connector treats the `202` body (`{ jobId, status: "queued" }`) as the final result, `mp3Url` is null, and the downstream `PublishEpisode` call fails.** Re-import this connector after any change to the synthesize contract.
+
 ---
 
 ## Wiring up in Copilot Studio
 
 1. Import each connector via **Custom connectors → New → Import OpenAPI file**.
-2. Test the connection by running each operation with sample data.
+2. Test the connection by running each operation with sample data. For `SynthesizeSpeech`, confirm the test eventually returns `200` with a populated `mp3Url` (it will sit on `202` for a few seconds while polling — that is expected).
 3. In your Echo agent → **Tools → Add tool → Connector** → pick `EchoPublisher` (always) and `BedrockCatalogQA` (optional).
 4. Map the operations: `SynthesizeSpeech`, `PublishEpisode`, `ListEpisodes`, `AskCatalog`.
 5. Set the auth: paste the Function key as the connection credential. For `BedrockCatalogQA`, follow `09-entra-agent-id-setup.md` to attach the Entra Agent ID token.
+6. **After importing or editing the connector, re-publish the agent.** Teams serves the last *published* snapshot, so connector or topic changes do not reach Teams until you publish.
 
 ---
 
