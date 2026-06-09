@@ -122,7 +122,7 @@ Single endpoint that handles speech synthesis + storage + RSS feed update. Your 
     "/synthesize": {
       "post": {
         "summary": "Synthesize SSML to MP3 and store it",
-        "operationId": "SynthesizeSpeech",
+        "operationId": "synthesize",
         "description": "Long-running operation. Returns 202 + a Location header; Power Platform auto-polls that URL until it returns a non-202 response, then surfaces the final 200 body (with mp3Url). This bypasses the connector's ~30s synchronous timeout, which full-episode HD synthesis can exceed.",
         "x-ms-long-running-operation": true,
         "parameters": [
@@ -296,7 +296,7 @@ Full-episode HD synthesis can take longer than the connector's ~30s synchronous 
 1. Import each connector via **Custom connectors → New → Import OpenAPI file**.
 2. Test the connection by running each operation with sample data. For `SynthesizeSpeech`, confirm the test eventually returns `200` with a populated `mp3Url` (it will sit on `202` for a few seconds while polling — that is expected).
 3. In your Echo agent → **Tools → Add tool → Connector** → pick `EchoPublisher` (always) and `BedrockCatalogQA` (optional).
-4. Map the operations: `SynthesizeSpeech`, `PublishEpisode`, `ListEpisodes`, `AskCatalog`.
+4. Map the operations: `synthesize`, `PublishEpisode`, `ListEpisodes`, `AskCatalog`. **The `operationId` must match what the agent already references** — Copilot Studio binds each tool action to a connector operation by its `operationId`, so changing it (e.g. via re-import) breaks the binding with `ConnectorOperationNotFound`. If a later step throws that error for `PublishEpisode`/`ListEpisodes`, align those ids the same way.
 5. Set the auth: paste the Function key as the connection credential. For `BedrockCatalogQA`, follow `09-entra-agent-id-setup.md` to attach the Entra Agent ID token.
 6. **After importing or editing the connector, re-publish the agent.** Teams serves the last *published* snapshot, so connector or topic changes do not reach Teams until you publish.
 
